@@ -18,73 +18,101 @@ const AdminDashboard = ({ session }) => {
   }, []);
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from('users').select('*');
-    setUsers(data);
+    try {
+      const { data } = await supabase.from('users').select('*');
+      setUsers(data);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
   };
 
   const fetchWithdrawals = async () => {
-    const { data } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        user:users!user_id(mobile_number)
-      `)
-      .eq('type', 'withdrawal')
-      .order('created_at', { ascending: false });
-    
-    setWithdrawals(data);
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          user:users!user_id(mobile_number)
+        `)
+        .eq('type', 'withdrawal')
+        .order('created_at', { ascending: false });
+      
+      setWithdrawals(data);
+    } catch (err) {
+      console.error('Error fetching withdrawals:', err);
+    }
   };
 
   const fetchDeposits = async () => {
-    const { data } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        user:users!user_id(mobile_number)
-      `)
-      .eq('type', 'deposit')
-      .order('created_at', { ascending: false });
-    
-    setDeposits(data);
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          user:users!user_id(mobile_number)
+        `)
+        .eq('type', 'deposit')
+        .order('created_at', { ascending: false });
+      
+      setDeposits(data);
+    } catch (err) {
+      console.error('Error fetching deposits:', err);
+    }
   };
 
   const fetchReferrals = async () => {
-    const { data } = await supabase
-      .from('referrals')
-      .select(`
-        *,
-        referrer:users!referrer_id(mobile_number),
-        referred:users!referred_id(mobile_number)
-      `)
-      .order('created_at', { ascending: false });
-    
-    setReferrals(data);
+    try {
+      const { data } = await supabase
+        .from('referrals')
+        .select(`
+          *,
+          referrer:users!referrer_id(mobile_number),
+          referred:users!referred_id(mobile_number)
+        `)
+        .order('created_at', { ascending: false });
+      
+      setReferrals(data);
+    } catch (err) {
+      console.error('Error fetching referrals:', err);
+    }
   };
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from('site_settings').select('*');
-    const settingsObj = {};
-    data.forEach(item => {
-      settingsObj[item.key] = item.value;
-    });
-    setSettings(settingsObj);
+    try {
+      const { data } = await supabase.from('site_settings').select('*');
+      const settingsObj = {};
+      data.forEach(item => {
+        settingsObj[item.key] = item.value;
+      });
+      setSettings(settingsObj);
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
   };
 
   const handleWithdrawalAction = async (id, status) => {
-    await supabase
-      .from('transactions')
-      .update({ status })
-      .eq('id', id);
-    
-    fetchWithdrawals();
+    try {
+      await supabase
+        .from('transactions')
+        .update({ status })
+        .eq('id', id);
+      
+      fetchWithdrawals();
+    } catch (err) {
+      console.error('Error updating withdrawal status:', err);
+    }
   };
 
   const updateSetting = async (key, value) => {
-    await supabase
-      .from('site_settings')
-      .upsert({ key, value });
-    
-    fetchSettings();
+    try {
+      await supabase
+        .from('site_settings')
+        .upsert({ key, value });
+      
+      fetchSettings();
+    } catch (err) {
+      console.error('Error updating setting:', err);
+    }
   };
 
   return (
