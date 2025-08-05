@@ -1,54 +1,70 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { loadScript } from '../utils/loadScript';
 
 const Premium = ({ session }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchUserData();
+    loadScript('https://checkout.razorpay.com/v1/checkout.js')
+      .then(() => setScriptLoaded(true))
+      .catch((err) => {
+        console.error('Failed to load Razorpay script:', err);
+        setError('Failed to load payment gateway. Please try again later.');
+      });
   }, []);
 
   const fetchUserData = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    setUser(data);
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to fetch user data. Please try again.');
+    }
   };
 
   const handlePurchase = async () => {
+    if (error) {
+      alert('Payment gateway is not available. Please try again later.');
+      return;
+    }
+
+    if (!scriptLoaded) {
+      alert('Payment gateway is loading. Please try again in a moment.');
+      return;
+    }
+
     setLoading(true);
-    
-    // Load Razorpay script dynamically
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    script.onload = () => {
+    setError(null);
+
+    try {
       const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag', // Use test key as fallback
-        amount: 19900, // 199 INR in paise
+        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag',
+        amount: 19900,
         currency: 'INR',
         name: 'VideoEarn App',
         description: 'Premium Membership',
         image: '/logo.png',
         handler: async (response) => {
-          // Verify payment on server
-          const paymentVerified = await verifyPayment(response.razorpay_payment_id);
-          
-          if (paymentVerified) {
-            // Update user to premium
-            await supabase
+          try {
+            const { error: updateError } = await supabase
               .from('users')
               .update({ is_premium: true })
               .eq('id', session.user.id);
+            
+            if (updateError) throw updateError;
               
-            // Add transaction record
-            await supabase.from('transactions').insert({
+            const { error: transactionError } = await supabase.from('transactions').insert({
               user_id: session.user.id,
               type: 'deposit',
               amount: 199.00,
@@ -56,12 +72,14 @@ const Premium = ({ session }) => {
               razorpay_payment_id: response.razorpay_payment_id
             });
             
+            if (transactionError) throw transactionError;
+            
             alert('Payment successful! You are now a premium member.');
             fetchUserData();
-          } else {
-            alert('Payment verification failed. Please contact support.');
+          } catch (err) {
+            console.error('Error updating user status:', err);
+            setError('Payment was successful but there was an error updating your account. Please contact support.');
           }
-          
           setLoading(false);
         },
         prefill: {
@@ -69,24 +87,27 @@ const Premium = ({ session }) => {
         },
         theme: {
           color: '#3399cc'
+        },
+        modal: {
+          ondismiss: () => setLoading(false)
         }
       };
       
       const rzp = new window.Razorpay(options);
       rzp.open();
-    };
-  };
-
-  const verifyPayment = async (paymentId) => {
-    // In a real app, you would verify the payment on your server
-    // This is a simplified version
-    return true;
+    } catch (err) {
+      console.error('Error opening Razorpay:', err);
+      setError('Failed to open payment gateway. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
     <div className="premium-page">
       <div className="premium-container">
         <h2>Premium Membership</h2>
+        
+        {error && <div className="error-message">{error}</div>}
         
         {user?.is_premium ? (
           <div className="premium-status">
@@ -122,10 +143,10 @@ const Premium = ({ session }) => {
                 <p>Lifetime access</p>
                 <button 
                   onClick={handlePurchase} 
-                  disabled={loading}
+                  disabled={loading || !scriptLoaded}
                   className="btn-primary"
                 >
-                  {loading ? 'Processing...' : 'Upgrade Now'}
+                  {loading ? 'Processing...' : scriptLoaded ? 'Upgrade Now' : 'Loading...'}
                 </button>
               </div>
             </div>
