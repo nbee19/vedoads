@@ -1,73 +1,94 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { loadScript } from '../utils/loadScript';
 
 const Deposit = ({ session }) => {
   const [user, setUser] = useState(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchUserData();
     fetchTransactions();
+    loadScript('https://checkout.razorpay.com/v1/checkout.js')
+      .then(() => setScriptLoaded(true))
+      .catch((err) => {
+        console.error('Failed to load Razorpay script:', err);
+        setError('Failed to load payment gateway. Please try again later.');
+      });
   }, []);
 
   const fetchUserData = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    setUser(data);
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to fetch user data. Please try again.');
+    }
   };
 
   const fetchTransactions = async () => {
-    const { data } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'deposit')
-      .order('created_at', { ascending: false });
-    
-    setTransactions(data);
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('type', 'deposit')
+        .order('created_at', { ascending: false });
+      
+      setTransactions(data);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      setError('Failed to fetch transactions. Please try again.');
+    }
   };
 
   const handleDeposit = async () => {
+    if (error) {
+      alert('Payment gateway is not available. Please try again later.');
+      return;
+    }
+
     if (!amount || amount <= 0) {
       alert('Please enter a valid amount');
       return;
     }
     
+    if (!scriptLoaded) {
+      alert('Payment gateway is loading. Please try again in a moment.');
+      return;
+    }
+    
     setLoading(true);
-    
-    // Load Razorpay script dynamically
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    script.onload = () => {
+    setError(null);
+
+    try {
       const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag', // Use test key as fallback
-        amount: amount * 100, // Convert to paise
+        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag',
+        amount: amount * 100,
         currency: 'INR',
         name: 'VideoEarn App',
         description: 'Deposit to Wallet',
         image: '/logo.png',
         handler: async (response) => {
-          // Verify payment on server
-          const paymentVerified = await verifyPayment(response.razorpay_payment_id);
-          
-          if (paymentVerified) {
-            // Update user balance
-            await supabase.rpc('increment_balance', {
+          try {
+            const { error: balanceError } = await supabase.rpc('increment_balance', {
               user_id: session.user.id,
               amount: parseFloat(amount)
             });
             
-            // Add transaction record
-            await supabase.from('transactions').insert({
+            if (balanceError) throw balanceError;
+            
+            const { error: transactionError } = await supabase.from('transactions').insert({
               user_id: session.user.id,
               type: 'deposit',
               amount: parseFloat(amount),
@@ -75,14 +96,16 @@ const Deposit = ({ session }) => {
               razorpay_payment_id: response.razorpay_payment_id
             });
             
+            if (transactionError) throw transactionError;
+            
             alert('Deposit successful!');
             setAmount('');
             fetchUserData();
             fetchTransactions();
-          } else {
-            alert('Payment verification failed. Please contact support.');
+          } catch (err) {
+            console.error('Error updating balance:', err);
+            setError('Payment was successful but there was an error updating your balance. Please contact support.');
           }
-          
           setLoading(false);
         },
         prefill: {
@@ -90,23 +113,27 @@ const Deposit = ({ session }) => {
         },
         theme: {
           color: '#3399cc'
+        },
+        modal: {
+          ondismiss: () => setLoading(false)
         }
       };
       
       const rzp = new window.Razorpay(options);
       rzp.open();
-    };
-  };
-
-  const verifyPayment = async (paymentId) => {
-    // In a real app, you would verify the payment on your server
-    return true;
+    } catch (err) {
+      console.error('Error opening Razorpay:', err);
+      setError('Failed to open payment gateway. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
     <div className="deposit-page">
       <div className="deposit-container">
         <h2>Deposit to Wallet</h2>
+        
+        {error && <div className="error-message">{error}</div>}
         
         <div className="balance-info">
           <div className="current-balance">
@@ -128,10 +155,10 @@ const Deposit = ({ session }) => {
           </div>
           <button 
             onClick={handleDeposit} 
-            disabled={loading}
+            disabled={loading || !scriptLoaded}
             className="btn-primary"
           >
-            {loading ? 'Processing...' : 'Deposit Now'}
+            {loading ? 'Processing...' : scriptLoaded ? 'Deposit Now' : 'Loading...'}
           </button>
         </div>
         
