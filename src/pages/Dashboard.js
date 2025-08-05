@@ -13,31 +13,39 @@ const Dashboard = ({ session }) => {
   }, []);
 
   const fetchUserData = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    setUser(data);
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    }
   };
 
   const checkVideoStatus = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const { data } = await supabase
-      .from('video_earnings')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .gte('earned_at', today)
-      .lt('earned_at', new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]);
-    
-    if (data && data.length > 0 && !user?.is_premium) {
-      setVideoLocked(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data } = await supabase
+        .from('video_earnings')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('earned_at', today)
+        .lt('earned_at', new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]);
+      
+      if (data && data.length > 0 && !user?.is_premium) {
+        setVideoLocked(true);
+      }
+      
+      const totalEarnings = data?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      setTodayEarnings(totalEarnings);
+    } catch (err) {
+      console.error('Error checking video status:', err);
     }
-    
-    const totalEarnings = data?.reduce((sum, item) => sum + item.amount, 0) || 0;
-    setTodayEarnings(totalEarnings);
   };
 
   return (
