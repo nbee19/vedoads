@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const Withdraw = ({ session }) => {
@@ -14,12 +14,7 @@ const Withdraw = ({ session }) => {
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchTransactions();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('users')
@@ -32,9 +27,9 @@ const Withdraw = ({ session }) => {
       console.error('Error fetching user data:', err);
       setError('Failed to fetch user data. Please try again.');
     }
-  };
+  }, [session.user.id]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('transactions')
@@ -48,7 +43,12 @@ const Withdraw = ({ session }) => {
       console.error('Error fetching transactions:', err);
       setError('Failed to fetch transactions. Please try again.');
     }
-  };
+  }, [session.user.id]);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchTransactions();
+  }, [fetchUserData, fetchTransactions]);
 
   const handleWithdraw = async () => {
     if (!amount || amount <= 0) {
