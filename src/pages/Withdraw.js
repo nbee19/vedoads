@@ -12,6 +12,7 @@ const Withdraw = ({ session }) => {
   });
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchUserData();
@@ -19,24 +20,34 @@ const Withdraw = ({ session }) => {
   }, []);
 
   const fetchUserData = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    setUser(data);
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to fetch user data. Please try again.');
+    }
   };
 
   const fetchTransactions = async () => {
-    const { data } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'withdrawal')
-      .order('created_at', { ascending: false });
-    
-    setTransactions(data);
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('type', 'withdrawal')
+        .order('created_at', { ascending: false });
+      
+      setTransactions(data);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      setError('Failed to fetch transactions. Please try again.');
+    }
   };
 
   const handleWithdraw = async () => {
@@ -56,32 +67,37 @@ const Withdraw = ({ session }) => {
     }
     
     setLoading(true);
+    setError(null);
+
+    try {
+      await supabase.from('transactions').insert({
+        user_id: session.user.id,
+        type: 'withdrawal',
+        amount: parseFloat(amount),
+        status: 'pending',
+        bank_details: bankDetails
+      });
+      
+      await supabase.rpc('decrement_balance', {
+        user_id: session.user.id,
+        amount: parseFloat(amount)
+      });
+      
+      alert('Withdrawal request submitted successfully!');
+      setAmount('');
+      setBankDetails({
+        accountName: '',
+        accountNumber: '',
+        ifsc: '',
+        bankName: ''
+      });
+      fetchUserData();
+      fetchTransactions();
+    } catch (err) {
+      console.error('Error processing withdrawal:', err);
+      setError('Failed to process withdrawal. Please try again.');
+    }
     
-    // Add withdrawal request
-    await supabase.from('transactions').insert({
-      user_id: session.user.id,
-      type: 'withdrawal',
-      amount: parseFloat(amount),
-      status: 'pending',
-      bank_details: bankDetails
-    });
-    
-    // Deduct from user balance
-    await supabase.rpc('decrement_balance', {
-      user_id: session.user.id,
-      amount: parseFloat(amount)
-    });
-    
-    alert('Withdrawal request submitted successfully!');
-    setAmount('');
-    setBankDetails({
-      accountName: '',
-      accountNumber: '',
-      ifsc: '',
-      bankName: ''
-    });
-    fetchUserData();
-    fetchTransactions();
     setLoading(false);
   };
 
@@ -97,6 +113,8 @@ const Withdraw = ({ session }) => {
     <div className="withdraw-page">
       <div className="withdraw-container">
         <h2>Withdraw Earnings</h2>
+        
+        {error && <div className="error-message">{error}</div>}
         
         <div className="balance-info">
           <div className="current-balance">
