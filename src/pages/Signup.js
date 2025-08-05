@@ -13,7 +13,6 @@ const Signup = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  // Pre-fill referral code from URL if present
   useEffect(() => {
     const refCode = searchParams.get('ref');
     if (refCode) {
