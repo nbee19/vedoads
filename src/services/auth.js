@@ -41,7 +41,7 @@ export const signUp = async (mobile, password, referralCode = null) => {
       }
     }
     
-    const { data: userData, error: userError } = await supabase
+    const { error: userError } = await supabase
       .from('users')
       .insert([{
         id: authData.user.id,
