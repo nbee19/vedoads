@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import VideoPlayer from '../components/VideoPlayer';
 
@@ -7,12 +7,7 @@ const Dashboard = ({ session }) => {
   const [videoLocked, setVideoLocked] = useState(false);
   const [todayEarnings, setTodayEarnings] = useState(0);
 
-  useEffect(() => {
-    fetchUserData();
-    checkVideoStatus();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('users')
@@ -24,9 +19,9 @@ const Dashboard = ({ session }) => {
     } catch (err) {
       console.error('Error fetching user data:', err);
     }
-  };
+  }, [session.user.id]);
 
-  const checkVideoStatus = async () => {
+  const checkVideoStatus = useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
@@ -46,7 +41,12 @@ const Dashboard = ({ session }) => {
     } catch (err) {
       console.error('Error checking video status:', err);
     }
-  };
+  }, [session.user.id, user?.is_premium]);
+
+  useEffect(() => {
+    fetchUserData();
+    checkVideoStatus();
+  }, [fetchUserData, checkVideoStatus]);
 
   return (
     <div className="dashboard-page">
