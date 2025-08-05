@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { loadScript } from '../utils/loadScript';
 
 const Premium = ({ session }) => {
   const [user, setUser] = useState(null);
@@ -22,8 +23,17 @@ const Premium = ({ session }) => {
   const handlePurchase = async () => {
     setLoading(true);
     
+    // Load Razorpay script dynamically
+    const scriptLoaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+    
+    if (!scriptLoaded) {
+      alert('Failed to load payment gateway. Please try again later.');
+      setLoading(false);
+      return;
+    }
+    
     const options = {
-      key: 'YOUR_RAZORPAY_KEY', // Replace with your Razorpay key
+      key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag', // Use test key as fallback
       amount: 19900, // 199 INR in paise
       currency: 'INR',
       name: 'VideoEarn App',
@@ -65,13 +75,12 @@ const Premium = ({ session }) => {
       }
     };
     
-    const rzp = new Razorpay(options);
+    const rzp = new window.Razorpay(options);
     rzp.open();
   };
 
   const verifyPayment = async (paymentId) => {
     // In a real app, you would verify the payment on your server
-    // This is a simplified version
     return true;
   };
 
