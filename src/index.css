@@ -1,0 +1,125 @@
+/* Add these new styles to the existing CSS */
+
+/* Referral Code Display */
+.referral-code-display {
+  background-color: #f0f2f5;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.referral-code-display .code {
+  font-size: 24px;
+  font-weight: bold;
+  color: #4a6cf7;
+  letter-spacing: 2px;
+}
+
+.referral-link-container {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.referral-link {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px 0 0 4px;
+  font-size: 14px;
+}
+
+.copy-btn {
+  padding: 10px 15px;
+  background-color: #4a6cf7;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.copy-btn:hover {
+  background-color: #3a5bd9;
+}
+
+/* Feature Card Highlight */
+.feature-card.highlight {
+  border: 2px solid #4a6cf7;
+  background-color: rgba(74, 108, 247, 0.05);
+}
+
+.feature-card.highlight i {
+  color: #4a6cf7;
+}
+
+/* Referral Highlight Section */
+.referral-highlight {
+  background: linear-gradient(135deg, #4a6cf7, #3a5bd9);
+  color: white;
+  padding: 60px 20px;
+  border-radius: 8px;
+  margin-top: 40px;
+  text-align: center;
+}
+
+.referral-highlight h2 {
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+.referral-highlight p {
+  font-size: 18px;
+  max-width: 700px;
+  margin: 0 auto 30px;
+}
+
+.referral-highlight .btn-primary {
+  background-color: white;
+  color: #4a6cf7;
+  font-weight: bold;
+}
+
+.referral-highlight .btn-primary:hover {
+  background-color: #f0f2f5;
+}
+
+/* Admin Dashboard Referral Section */
+.referrals-section {
+  margin-top: 20px;
+}
+
+.referral-table {
+  overflow-x: auto;
+}
+
+.referral-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.referral-table th, .referral-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.referral-table th {
+  background-color: #f5f7fa;
+  font-weight: 600;
+}
+
+/* Responsive Design Updates */
+@media (max-width: 768px) {
+  .referral-highlight h2 {
+    font-size: 28px;
+  }
+  
+  .referral-highlight p {
+    font-size: 16px;
+  }
+  
+  .referral-code-display .code {
+    font-size: 20px;
+  }
+}
