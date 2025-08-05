@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { loadScript } from '../utils/loadScript';
 
@@ -10,18 +10,7 @@ const Deposit = ({ session }) => {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchTransactions();
-    loadScript('https://checkout.razorpay.com/v1/checkout.js')
-      .then(() => setScriptLoaded(true))
-      .catch((err) => {
-        console.error('Failed to load Razorpay script:', err);
-        setError('Failed to load payment gateway. Please try again later.');
-      });
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('users')
@@ -34,9 +23,9 @@ const Deposit = ({ session }) => {
       console.error('Error fetching user data:', err);
       setError('Failed to fetch user data. Please try again.');
     }
-  };
+  }, [session.user.id]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('transactions')
@@ -50,7 +39,18 @@ const Deposit = ({ session }) => {
       console.error('Error fetching transactions:', err);
       setError('Failed to fetch transactions. Please try again.');
     }
-  };
+  }, [session.user.id]);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchTransactions();
+    loadScript('https://checkout.razorpay.com/v1/checkout.js')
+      .then(() => setScriptLoaded(true))
+      .catch((err) => {
+        console.error('Failed to load Razorpay script:', err);
+        setError('Failed to load payment gateway. Please try again later.');
+      });
+  }, [fetchUserData, fetchTransactions]);
 
   const handleDeposit = async () => {
     if (error) {
