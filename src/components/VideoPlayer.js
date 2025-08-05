@@ -3,7 +3,7 @@ import YouTube from 'react-youtube';
 import { supabase } from '../services/supabaseClient';
 
 const VideoPlayer = ({ userId, onVideoComplete }) => {
-  const [videoId, setVideoId] = useState('dQw4w9WgXcQ'); // Default video
+  const [videoId, setVideoId] = useState('dQw4w9WgXcQ');
   const [videoStarted, setVideoStarted] = useState(false);
   const [videoCompleted, setVideoCompleted] = useState(false);
 
@@ -12,11 +12,10 @@ const VideoPlayer = ({ userId, onVideoComplete }) => {
   }, []);
 
   const fetchRandomVideo = async () => {
-    // In a real app, you would fetch videos from your database
     const videos = [
-      'dQw4w9WgXcQ', // Sample video 1
-      'M7lc1UVf-VE', // Sample video 2
-      'kJQP7kiw5Fk'  // Sample video 3
+      'dQw4w9WgXcQ',
+      'M7lc1UVf-VE',
+      'kJQP7kiw5Fk'
     ];
     const randomVideo = videos[Math.floor(Math.random() * videos.length)];
     setVideoId(randomVideo);
@@ -39,21 +38,22 @@ const VideoPlayer = ({ userId, onVideoComplete }) => {
   const handleVideoComplete = async () => {
     setVideoCompleted(true);
     
-    // Add earnings
-    await supabase.from('video_earnings').insert({
-      user_id: userId,
-      video_id: videoId,
-      amount: 5.00 // Amount per video
-    });
-    
-    // Update user balance
-    await supabase.rpc('increment_balance', {
-      user_id: userId,
-      amount: 5.00
-    });
-    
-    // Notify parent component
-    onVideoComplete();
+    try {
+      await supabase.from('video_earnings').insert({
+        user_id: userId,
+        video_id: videoId,
+        amount: 5.00
+      });
+      
+      await supabase.rpc('increment_balance', {
+        user_id: userId,
+        amount: 5.00
+      });
+      
+      onVideoComplete();
+    } catch (err) {
+      console.error('Error recording video completion:', err);
+    }
   };
 
   const opts = {
