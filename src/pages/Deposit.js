@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { loadScript } from '../utils/loadScript';
 
 const Deposit = ({ session }) => {
   const [user, setUser] = useState(null);
@@ -43,61 +42,60 @@ const Deposit = ({ session }) => {
     setLoading(true);
     
     // Load Razorpay script dynamically
-    const scriptLoaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
     
-    if (!scriptLoaded) {
-      alert('Failed to load payment gateway. Please try again later.');
-      setLoading(false);
-      return;
-    }
-    
-    const options = {
-      key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag', // Use test key as fallback
-      amount: amount * 100, // Convert to paise
-      currency: 'INR',
-      name: 'VideoEarn App',
-      description: 'Deposit to Wallet',
-      image: '/logo.png',
-      handler: async (response) => {
-        // Verify payment on server
-        const paymentVerified = await verifyPayment(response.razorpay_payment_id);
-        
-        if (paymentVerified) {
-          // Update user balance
-          await supabase.rpc('increment_balance', {
-            user_id: session.user.id,
-            amount: parseFloat(amount)
-          });
+    script.onload = () => {
+      const options = {
+        key: process.env.REACT_APP_RAZORPAY_KEY || 'rzp_test_1DP5mmOlF5G5ag', // Use test key as fallback
+        amount: amount * 100, // Convert to paise
+        currency: 'INR',
+        name: 'VideoEarn App',
+        description: 'Deposit to Wallet',
+        image: '/logo.png',
+        handler: async (response) => {
+          // Verify payment on server
+          const paymentVerified = await verifyPayment(response.razorpay_payment_id);
           
-          // Add transaction record
-          await supabase.from('transactions').insert({
-            user_id: session.user.id,
-            type: 'deposit',
-            amount: parseFloat(amount),
-            status: 'completed',
-            razorpay_payment_id: response.razorpay_payment_id
-          });
+          if (paymentVerified) {
+            // Update user balance
+            await supabase.rpc('increment_balance', {
+              user_id: session.user.id,
+              amount: parseFloat(amount)
+            });
+            
+            // Add transaction record
+            await supabase.from('transactions').insert({
+              user_id: session.user.id,
+              type: 'deposit',
+              amount: parseFloat(amount),
+              status: 'completed',
+              razorpay_payment_id: response.razorpay_payment_id
+            });
+            
+            alert('Deposit successful!');
+            setAmount('');
+            fetchUserData();
+            fetchTransactions();
+          } else {
+            alert('Payment verification failed. Please contact support.');
+          }
           
-          alert('Deposit successful!');
-          setAmount('');
-          fetchUserData();
-          fetchTransactions();
-        } else {
-          alert('Payment verification failed. Please contact support.');
+          setLoading(false);
+        },
+        prefill: {
+          contact: session.user.phone
+        },
+        theme: {
+          color: '#3399cc'
         }
-        
-        setLoading(false);
-      },
-      prefill: {
-        contact: session.user.phone
-      },
-      theme: {
-        color: '#3399cc'
-      }
+      };
+      
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     };
-    
-    const rzp = new window.Razorpay(options);
-    rzp.open();
   };
 
   const verifyPayment = async (paymentId) => {
