@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const Referral = ({ session }) => {
@@ -7,13 +7,7 @@ const Referral = ({ session }) => {
   const [referralLink, setReferralLink] = useState('');
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchReferrals();
-    generateReferralLink();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('users')
@@ -25,9 +19,9 @@ const Referral = ({ session }) => {
     } catch (err) {
       console.error('Error fetching user data:', err);
     }
-  };
+  }, [session.user.id]);
 
-  const fetchReferrals = async () => {
+  const fetchReferrals = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('referrals')
@@ -41,13 +35,19 @@ const Referral = ({ session }) => {
     } catch (err) {
       console.error('Error fetching referrals:', err);
     }
-  };
+  }, [session.user.id]);
 
-  const generateReferralLink = () => {
+  const generateReferralLink = useCallback(() => {
     const baseUrl = window.location.origin;
     const code = user?.referral_code || session.user.id;
     setReferralLink(`${baseUrl}/signup?ref=${code}`);
-  };
+  }, [user?.referral_code, session.user.id]);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchReferrals();
+    generateReferralLink();
+  }, [fetchUserData, fetchReferrals, generateReferralLink]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
