@@ -14,30 +14,37 @@ const Referral = ({ session }) => {
   }, []);
 
   const fetchUserData = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-    
-    setUser(data);
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      setUser(data);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    }
   };
 
   const fetchReferrals = async () => {
-    const { data } = await supabase
-      .from('referrals')
-      .select(`
-        *,
-        referred:users!referred_id(mobile_number)
-      `)
-      .eq('referrer_id', session.user.id);
-    
-    setReferrals(data);
+    try {
+      const { data } = await supabase
+        .from('referrals')
+        .select(`
+          *,
+          referred:users!referred_id(mobile_number)
+        `)
+        .eq('referrer_id', session.user.id);
+      
+      setReferrals(data);
+    } catch (err) {
+      console.error('Error fetching referrals:', err);
+    }
   };
 
   const generateReferralLink = () => {
     const baseUrl = window.location.origin;
-    // Use referral code instead of user ID
     const code = user?.referral_code || session.user.id;
     setReferralLink(`${baseUrl}/signup?ref=${code}`);
   };
