@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 
-// Generate a random referral code
 const generateReferralCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
@@ -12,7 +11,6 @@ const generateReferralCode = () => {
 
 export const signUp = async (mobile, password, referralCode = null) => {
   try {
-    // Create user in auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       phone: mobile,
       password,
@@ -20,12 +18,15 @@ export const signUp = async (mobile, password, referralCode = null) => {
     
     if (authError) throw authError;
     
-    // Generate unique referral code
+    if (!authData.user) {
+      throw new Error('User creation failed');
+    }
+    
     let newReferralCode = generateReferralCode();
     let codeExists = true;
+    let attempts = 0;
     
-    // Ensure referral code is unique
-    while (codeExists) {
+    while (codeExists && attempts < 10) {
       const { data } = await supabase
         .from('users')
         .select('id')
@@ -36,22 +37,21 @@ export const signUp = async (mobile, password, referralCode = null) => {
         codeExists = false;
       } else {
         newReferralCode = generateReferralCode();
+        attempts++;
       }
     }
     
-    // Create user in our database
     const { data: userData, error: userError } = await supabase
       .from('users')
       .insert([{
         id: authData.user.id,
         mobile_number: mobile,
-        password_hash: password, // In production, hash this properly
+        password_hash: password,
         referral_code: newReferralCode
       }]);
     
     if (userError) throw userError;
     
-    // Process referral if code provided
     if (referralCode) {
       const { data: referrer } = await supabase
         .from('users')
@@ -60,41 +60,63 @@ export const signUp = async (mobile, password, referralCode = null) => {
         .single();
       
       if (referrer) {
-        // Add referral record
-        await supabase.from('referrals').insert([{
+        const { error: referralError } = await supabase.from('referrals').insert([{
           referrer_id: referrer.id,
           referred_id: authData.user.id,
-          reward: 50.00 // 50 INR reward
+          reward: 50.00
         }]);
         
-        // Update referrer's balance
-        await supabase.rpc('increment_balance', {
+        if (referralError) throw referralError;
+        
+        const { error: balanceError } = await supabase.rpc('increment_balance', {
           user_id: referrer.id,
           amount: 50.00
         });
+        
+        if (balanceError) throw balanceError;
       }
     }
     
     return { data: authData, error: null };
   } catch (error) {
+    console.error('Signup error:', error);
     return { data: null, error };
   }
 };
 
 export const login = async (mobile, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    phone: mobile,
-    password,
-  });
-  return { data, error };
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      phone: mobile,
+      password,
+    });
+    
+    if (error) throw error;
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Login error:', error);
+    return { data: null, error };
+  }
 };
 
 export const logout = async () => {
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return { error };
+  }
 };
 
 export const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch (error) {
+    console.error('Get current user error:', error);
+    return null;
+  }
 };
